@@ -31,7 +31,13 @@ sub _app {
         Mojo::Loader->reload;
         $_app = undef;
     }
-    $_app ||= Mojo::Loader->load_build($ENV{MOJO_APP} || 'Mojo::HelloWorld');
+    
+    if (! defined $_app) {
+      my $l = Mojo::Loader->new;
+      $l->load($ENV{MOJO_APP} || 'Mojo::HelloWorld');
+      my $modname = $ENV{MOJO_APP};
+      $_app = $modname->new;
+    };
     return $_app;
 }
 
@@ -40,7 +46,8 @@ sub handler {
 
     # call _app() only once (because of MOJO_RELOAD)
     my $app = _app;
-    my $tx  = $app->build_tx;
+    my $btx = $app->build_tx_cb;
+    my $tx  = $btx->();
 
     # Transaction
     _transaction($r, $tx);
@@ -146,6 +153,7 @@ sub _response {
     foreach my $key (@{$headers->names}) {
         my @value = $headers->header($key);
         next unless @value;
+        @value = @{ $value[0] };
 
         # special treatment for content-type
         if ($key eq 'Content-Type') {
